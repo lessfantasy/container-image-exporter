@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: container-image-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: container-image-exporter
+spec:
+  selector:
+    app.kubernetes.io/name: container-image-exporter
+  ports:
+    - name: metrics
+      port: 9877
+      targetPort: metrics

@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: container-image-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: container-image-exporter
+spec:
+  # One replica: every replica would query the registries on its own.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: container-image-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: container-image-exporter
+    spec:
+      serviceAccountName: container-image-exporter
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          # Replace with the image you built and pushed (see README).
+          image: ghcr.io/lessfantasy/container-image-exporter:0.1.0
+          args:
+            - --mode=kubernetes
+            - --listen-address=:9877
+            - --scan-interval=1m
+            - --registry-interval=6h
+          ports:
+            - name: metrics
+              containerPort: 9877
+          # /healthz for both probes on purpose: /metrics answers 503 while
+          # no reliable scan result exists, and Prometheus must still be
+          # able to reach the pod to record that as up == 0.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Private registries without workload identity: mount a
+          # kubernetes.io/dockerconfigjson Secret and set DOCKER_CONFIG.
+          # env:
+          #   - name: DOCKER_CONFIG
+          #     value: /auth
+          # volumeMounts:
+          #   - name: registry-auth
+          #     mountPath: /auth
+          #     readOnly: true
+      # volumes:
+      #   - name: registry-auth
+      #     secret:
+      #       secretName: registry-auth
+      #       items:
+      #         - key: .dockerconfigjson
+      #           path: config.json

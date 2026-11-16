@@ -1,0 +1,32 @@
+# Simple setup for trusted hosts: the exporter reads docker.sock directly.
+#
+# WARNING: ":ro" on the socket mount only makes the socket file read-only.
+# It does NOT restrict the Docker API: any process that can open the socket
+# can create, stop and delete containers, i.e. it has root on the host.
+# The exporter only sends GET requests, but prefer docker-compose.yml with
+# the socket proxy for production.
+#
+#   DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) \
+#     docker compose -f deploy/docker/docker-compose.socket.yml up -d --build
+
+services:
+  container-image-exporter:
+    build:
+      context: ../..
+    image: container-image-exporter:local
+    restart: unless-stopped
+    environment:
+      EXPORTER_MODE: docker
+      EXPORTER_DOCKER_HOST: unix:///var/run/docker.sock
+    # The image runs as a non-root user; add the group that owns the socket.
+    group_add:
+      - "${DOCKER_GID:?set DOCKER_GID to the group id of /var/run/docker.sock}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:9877:9877"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

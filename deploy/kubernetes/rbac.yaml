@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: container-image-exporter
+  namespace: monitoring
+---
+# Read-only, cluster-wide. "list" is the only verb used; no watch, no write.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: container-image-exporter
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  # Owner resolution: Pod -> ReplicaSet -> Deployment, Pod -> Job -> CronJob.
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: container-image-exporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: container-image-exporter
+subjects:
+  - kind: ServiceAccount
+    name: container-image-exporter
+    namespace: monitoring

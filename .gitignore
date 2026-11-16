@@ -1,0 +1,5 @@
+/bin/
+/container-image-exporter
+*.test
+*.out
+/dist/

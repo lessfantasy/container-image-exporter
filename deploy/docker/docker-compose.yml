@@ -1,0 +1,53 @@
+# Recommended setup: the exporter never touches docker.sock. It talks to a
+# socket proxy that only allows read (GET) requests on the container and
+# image endpoints.
+#
+#   docker compose -f deploy/docker/docker-compose.yml up -d --build
+#   curl http://localhost:9877/metrics
+
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1   # GET /containers/json, GET /containers/{id}/json
+      IMAGES: 1       # GET /images/{id}/json
+      POST: 0         # reject every write request
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
+
+  container-image-exporter:
+    build:
+      context: ../..
+    image: container-image-exporter:local
+    restart: unless-stopped
+    depends_on:
+      - docker-socket-proxy
+    env_file:
+      - path: exporter.env
+        required: false
+    environment:
+      EXPORTER_MODE: docker
+      EXPORTER_DOCKER_HOST: tcp://docker-socket-proxy:2375
+    ports:
+      - "127.0.0.1:9877:9877"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - docker-api
+      - default
+    # Private registries: mount a Docker config and point DOCKER_CONFIG at it.
+    # volumes:
+    #   - ./registry-auth:/auth:ro
+    # environment:
+    #   DOCKER_CONFIG: /auth
+
+networks:
+  # Only the exporter can reach the socket proxy.
+  docker-api:
+    internal: true

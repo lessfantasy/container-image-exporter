@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+UNIT=container-image-exporter.service
+
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ]; then
+    systemctl disable --now "$UNIT" || true
+fi
+
+exit 0

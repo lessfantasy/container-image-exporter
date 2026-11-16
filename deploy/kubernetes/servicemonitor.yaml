@@ -1,0 +1,18 @@
+# OPTIONAL. Requires the Prometheus Operator CRDs.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: container-image-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: container-image-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: container-image-exporter
+  endpoints:
+    - port: metrics
+      interval: 1m
+      # The exporter's "namespace" label describes the monitored workload.
+      # Keep it instead of the exporter's own namespace.
+      honorLabels: true

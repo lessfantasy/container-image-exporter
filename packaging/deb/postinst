@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+USER_NAME=container-image-exporter
+UNIT=container-image-exporter.service
+
+if [ "$1" = "configure" ]; then
+    if ! getent passwd "$USER_NAME" >/dev/null; then
+        adduser --system --group --no-create-home --home /nonexistent \
+            --shell /usr/sbin/nologin "$USER_NAME" >/dev/null
+    fi
+
+    # The environment file may hold registry credentials.
+    chown root:"$USER_NAME" /etc/default/container-image-exporter
+    chmod 0640 /etc/default/container-image-exporter
+
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || true
+        if [ -z "$2" ]; then
+            # Fresh install.
+            systemctl enable --now "$UNIT" || true
+        else
+            systemctl try-restart "$UNIT" || true
+        fi
+    fi
+
+    if [ -z "$2" ] && getent group docker >/dev/null &&
+        ! id -nG "$USER_NAME" | tr ' ' '\n' | grep -qx docker; then
+        echo "container-image-exporter: Docker mode needs access to the Docker socket." >&2
+        echo "  Grant it with: adduser $USER_NAME docker && systemctl restart $UNIT" >&2
+        echo "  Membership of the docker group is equivalent to root. See" >&2
+        echo "  /usr/share/doc/container-image-exporter/README.md for a socket proxy." >&2
+    fi
+fi
+
+exit 0

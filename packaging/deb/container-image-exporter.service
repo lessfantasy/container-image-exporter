@@ -1,0 +1,42 @@
+[Unit]
+Description=Container Image Version Exporter for Prometheus
+Documentation=file:///usr/share/doc/container-image-exporter/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=container-image-exporter
+Group=container-image-exporter
+EnvironmentFile=-/etc/default/container-image-exporter
+ExecStart=/usr/bin/container-image-exporter
+Restart=on-failure
+RestartSec=5s
+
+# The exporter needs outbound network access and, in Docker mode, the
+# Docker socket. Nothing else.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target
